@@ -1,0 +1,83 @@
+from selenium import webdriver
+from selenium.webdriver.chrome.service import Service
+from webdriver_manager.chrome import ChromeDriverManager
+from bs4 import BeautifulSoup
+from datetime import datetime, timedelta
+import time
+import pandas as pd
+
+# Set up the Chrome driver with the appropriate service
+service = Service(ChromeDriverManager().install())
+browser = webdriver.Chrome(service=service)
+browser.get("https://www.ettoday.net/news/news-list.htm")
+
+two_hours_ago = datetime.now() - timedelta(hours=2)
+print(two_hours_ago)
+two_hours_ago_time = two_hours_ago.strftime("%Y/%m/%d %H:%M")
+print("兩小時前時間：", two_hours_ago_time)
+last_height = browser.execute_script("return document.body.scrollHeight")
+
+go = True
+
+while go:
+    browser.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+    time.sleep(2)
+    html_source = browser.page_source
+    soup = BeautifulSoup(html_source, "lxml")
+
+    new_height = browser.execute_script("return document.body.scrollHeight")
+
+    # 已經到頁面底部
+    if new_height == last_height:
+        print("已經到頁面最底部，程序停止")
+        break
+
+    last_height = new_height
+
+    for d in soup.find(class_="part_list_2").find_all('h3'):
+        # 已經超出兩小時
+        if datetime.strptime(d.find(class_="date").text, '%Y/%m/%d %H:%M') < two_hours_ago:
+            print("已經超出兩個小時，程序停止")
+            go = False
+            break
+        else:
+            print("目前畫面最下方文章的日期時間為：", d.find_all(class_="date")[-1].text)
+
+html_source = browser.page_source
+soup = BeautifulSoup(html_source, "lxml")
+
+news = {"日期時間": [], "標題": [], "連結": [], "內容": []}
+
+for d in soup.find(class_="part_list_2").find_all('h3'):
+    if two_hours_ago_time in d.find(class_="date"):
+        pass
+    else:
+        print(d.find(class_="date").text, d.find_all('a')[-1].text)
+        news["日期時間"].append(d.find(class_="date").text)
+        news["標題"].append(d.find_all('a')[-1].text)
+        link = d.find_all('a')[-1]["href"]
+        if not link.startswith("https://"):
+            link = "https://www.ettoday.net" + link
+        news["連結"].append(link)
+
+# Loop through each news link to get the content
+for link in news["連結"]:
+    try:
+        browser.get(link)
+        time.sleep(2)
+        article_source = browser.page_source
+        article_soup = BeautifulSoup(article_source, "lxml")
+
+        # Find the article content, this selector might need to be adjusted based on the website's HTML structure
+        article_content = article_soup.find('div', class_="story").get_text(strip=True)
+        news["內容"].append(article_content)
+    except Exception as e:
+        print(f"Error accessing {link}: {e}")
+        news["內容"].append("")
+
+browser.close()  # 很重要喔記得要關掉瀏覽器，不然要手動關掉
+
+df_news = pd.DataFrame(news)
+df_news
+# 存成csv檔
+df_news.to_csv("./df_news.csv", index=False)
