@@ -1,0 +1,48 @@
+import pandas as pd
+import numpy as np
+from gensim import corpora
+from sklearn.decomposition import LatentDirichletAllocation
+from sklearn.feature_extraction.text import CountVectorizer
+import matplotlib.pyplot as plt
+
+# 使用双反斜杠定义文件路径
+file_path = "C:\\Users\\ASUS\\Pictures\\cleaned_processed_content.csv"  # 修改为你的文件路径
+
+# 读取CSV文件
+data = pd.read_csv(file_path)
+
+# 将Processed_Content列转换为词列表
+seg_lst = data['Processed_Content'].apply(lambda x: x.split()).tolist()
+
+# 创建词典和语料库
+dictionary = corpora.Dictionary(seg_lst)
+corpus = [dictionary.doc2bow(text) for text in seg_lst]
+texts = [' '.join(text) for text in seg_lst]
+
+# 使用 CountVectorizer 转换文本数据
+vectorizer = CountVectorizer()
+X = vectorizer.fit_transform(texts)
+
+# 训练 LDA 模型并选择最佳主题数
+perplexity_scores = []
+for n_topics in range(2, 21):
+    lda = LatentDirichletAllocation(n_components=n_topics, random_state=42)
+    lda.fit(X)
+    perplexity_scores.append(lda.perplexity(X))
+
+# 绘制困惑度图
+plt.plot(range(2, 21), perplexity_scores)
+plt.xlabel("Num Topics")
+plt.ylabel("Perplexity Score")
+plt.title("Perplexity Scores for Different Number of Topics")
+plt.show()
+
+# 找到最佳主题数
+optimal_num_topics = np.argmin(perplexity_scores) + 2
+print(f"The optimal number of topics is {optimal_num_topics}")
+
+# 打印最佳 LDA 模型的主题
+lda = LatentDirichletAllocation(n_components=optimal_num_topics, random_state=42)
+lda.fit(X)
+for idx, topic in enumerate(lda.components_):
+    print(f"Topic {idx + 1}: {[vectorizer.get_feature_names_out()[i] for i in topic.argsort()[-10:]]}")
