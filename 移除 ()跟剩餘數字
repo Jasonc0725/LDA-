@@ -1,0 +1,30 @@
+import pandas as pd
+import re
+
+# 讀取CSV文件
+file_path = "C:\\Users\\ASUS\\Pictures\\processed_content.csv"  # 修改為你的文件路徑
+data = pd.read_csv(file_path)
+
+# 顯示前5行數據
+print("Before cleaning:")
+print(data.head())
+
+# 定義正則表達式來匹配包含符號的數字
+pattern = r'[^\w\s]*\d+[^\w\s]*'
+
+# 使用replace函數進行替換
+data['Processed_Content'] = data['Processed_Content'].apply(lambda x: re.sub(pattern, '', x))
+
+# 顯示前5行清理後的數據
+print("After cleaning:")
+print(data.head())
+
+# 保存清理過的數據到新的CSV文件
+cleaned_file_path = "C:\\Users\\ASUS\\Pictures\\cleaned_processed_content.csv"
+data.to_csv(cleaned_file_path, index=False, encoding="utf-8-sig")
+
+# 保存清理過的數據到新的Excel文件
+cleaned_excel_file_path = "C:\\Users\\ASUS\\Pictures\\cleaned_processed_content.xlsx"
+data.to_excel(cleaned_excel_file_path, index=False)
+
+print(f"Cleaned data has been saved to {cleaned_file_path} and {cleaned_excel_file_path}")
